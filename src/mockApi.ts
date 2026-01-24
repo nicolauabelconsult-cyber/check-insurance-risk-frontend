@@ -144,10 +144,11 @@ export async function createUser(data: any) {
     email: data.email,
     role: data.role,
     status: data.status,
+    // mock apenas (não é para produção)
+    password: data.password,
   };
   users.unshift(u);
 
-  // auditoria
   audit.unshift({
     id: crypto.randomUUID(),
     action: "USER_CREATED",
