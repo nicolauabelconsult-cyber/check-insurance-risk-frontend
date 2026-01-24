@@ -8,9 +8,16 @@ export default function UserCreate() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("CLIENT_ANALYST");
   const [status, setStatus] = useState("ACTIVE");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
 
   const submit = async () => {
-    await createUser({ name, email, role, status });
+    setErr(null);
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setErr("Preencha nome, email e password.");
+      return;
+    }
+    await createUser({ name, email, role, status, password });
     nav("/users");
   };
 
@@ -20,14 +27,19 @@ export default function UserCreate() {
       <p className="sub">Criação controlada por RBAC.</p>
 
       <div className="toolbar" style={{ justifyContent: "flex-start" }}>
-        <div style={{ width: 320 }}>
+        <div style={{ width: 300 }}>
           <label>Nome</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
-        <div style={{ width: 320 }}>
+        <div style={{ width: 340 }}>
           <label>Email</label>
           <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+
+        <div style={{ width: 260 }}>
+          <label>Password</label>
+          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
 
         <div style={{ width: 220 }}>
@@ -49,6 +61,8 @@ export default function UserCreate() {
 
         <button className="btn primary" onClick={submit}>Guardar</button>
         <button className="btn" onClick={() => nav("/users")}>Cancelar</button>
+
+        {err && <span className="tag bad">{err}</span>}
       </div>
     </>
   );
