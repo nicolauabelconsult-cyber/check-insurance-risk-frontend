@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { downloadPdf, getRisk } from "./mockApi";
 
 export default function RiskDetail() {
@@ -30,14 +30,11 @@ export default function RiskDetail() {
       <div className="toolbar">
         <div>
           <h2 className="h1">{risk.ref}</h2>
-          <p className="sub">Resultado técnico da análise.</p>
+          <p className="sub">PDF técnico e rastreabilidade.</p>
         </div>
-
         <div className="stack">
           <button className="btn" onClick={() => nav("/risks")}>Voltar</button>
-          <button className="btn primary" onClick={onDownload}>
-            Download PDF Técnico
-          </button>
+          <button className="btn primary" onClick={onDownload}>Baixar PDF Técnico</button>
         </div>
       </div>
 
@@ -48,11 +45,7 @@ export default function RiskDetail() {
           <tr><th>Score</th><td>{risk.score}</td></tr>
           <tr>
             <th>PEP</th>
-            <td>
-              {risk.pep?.is_pep
-                ? `Sim (${risk.pep.role_or_function || "Cargo não informado"})`
-                : "Não"}
-            </td>
+            <td>{risk.pep?.is_pep ? `Sim (${risk.pep.role_or_function || "Cargo não informado"})` : "Não"}</td>
           </tr>
         </tbody>
       </table>
