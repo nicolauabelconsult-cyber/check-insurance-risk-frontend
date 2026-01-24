@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createUser } from "./mockApi";
+import { createUser, listEntities } from "./mockApi";
 
 export default function UserCreate() {
   const nav = useNavigate();
+
+  const [entities, setEntities] = useState<any[]>([]);
+  useEffect(() => { listEntities().then(setEntities); }, []);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [entityId, setEntityId] = useState("");
   const [role, setRole] = useState("CLIENT_ANALYST");
   const [status, setStatus] = useState("ACTIVE");
   const [password, setPassword] = useState("");
@@ -13,33 +18,38 @@ export default function UserCreate() {
 
   const submit = async () => {
     setErr(null);
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setErr("Preencha nome, email e password.");
+    if (!name.trim() || !email.trim() || !password.trim() || !entityId) {
+      setErr("Preencha nome, email, entidade e password.");
       return;
     }
-    await createUser({ name, email, role, status, password });
+    await createUser({ name, email, entity_id: entityId, role, status, password });
     nav("/users");
   };
 
   return (
     <>
       <h2 className="h1">Criar Utilizador</h2>
-      <p className="sub">Criação controlada por RBAC.</p>
+      <p className="sub">O utilizador é criado já associado a uma Entidade (cliente).</p>
 
       <div className="toolbar" style={{ justifyContent: "flex-start" }}>
-        <div style={{ width: 300 }}>
+        <div style={{ width: 280 }}>
           <label>Nome</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
-        <div style={{ width: 340 }}>
+        <div style={{ width: 320 }}>
           <label>Email</label>
           <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
 
         <div style={{ width: 260 }}>
-          <label>Password</label>
-          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label>Entidade</label>
+          <select value={entityId} onChange={(e) => setEntityId(e.target.value)}>
+            <option value="">Selecionar...</option>
+            {entities.map((x) => (
+              <option key={x.id} value={x.id}>{x.name}</option>
+            ))}
+          </select>
         </div>
 
         <div style={{ width: 220 }}>
@@ -57,6 +67,11 @@ export default function UserCreate() {
             <option value="ACTIVE">ACTIVE</option>
             <option value="INACTIVE">INACTIVE</option>
           </select>
+        </div>
+
+        <div style={{ width: 240 }}>
+          <label>Password</label>
+          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
 
         <button className="btn primary" onClick={submit}>Guardar</button>
