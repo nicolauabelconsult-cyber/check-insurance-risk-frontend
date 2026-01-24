@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
-import Login from "./auth/Login";
-import { RequireAuth, RequirePerm } from "./auth/RequireAuth";
-import MainLayout from "./layout/MainLayout";
+import Login from "./Login";
+import MainLayout from "./MainLayout";
+import { RequireAuth, RequirePerm } from "./RequireAuth";
 
 import RiskList from "../features/risk/RiskList";
 import RiskDetail from "../features/risk/RiskDetail";
