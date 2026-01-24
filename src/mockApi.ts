@@ -11,15 +11,18 @@ export async function mockLogin(email: string, password: string) {
         email,
         role: "SUPER_ADMIN",
         permissions: [
-          "risk:read",
-          "risk:create",
-          "risk:pdf:download",
-          "sources:read",
-          "sources:upload",
-          "users:read",
-          "users:create",
-          "users:update",
-          "audit:read",
+          permissions: [
+  "risk:read",
+  "risk:create",
+  "risk:pdf:download",
+  "sources:read",
+  "sources:upload",
+  "users:read",
+  "users:create",
+  "users:update",
+  "audit:read",
+],
+
         ],
       },
     };
