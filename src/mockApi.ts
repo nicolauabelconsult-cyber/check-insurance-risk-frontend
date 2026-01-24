@@ -205,3 +205,45 @@ let audit: any[] = [
 export async function listAudit() {
   return audit;
 }
+export async function updateSource(id: string, data: any) {
+  const i = sources.findIndex((s) => s.id === id);
+  if (i === -1) return null;
+
+  sources[i] = {
+    ...sources[i],
+    category: data.category ?? sources[i].category,
+    tags: data.tags ?? sources[i].tags,
+    status: data.status ?? sources[i].status,
+  };
+
+  audit.unshift({
+    id: crypto.randomUUID(),
+    action: "SOURCE_UPDATED",
+    actor: { name: "Nicolau Abel" },
+    entity_name: null,
+    target_ref: sources[i].name,
+    created_at: new Date().toISOString(),
+  });
+
+  return sources[i];
+}
+
+export async function deleteSource(id: string) {
+  const i = sources.findIndex((s) => s.id === id);
+  if (i === -1) return false;
+
+  const removed = sources[i];
+  sources.splice(i, 1);
+
+  audit.unshift({
+    id: crypto.randomUUID(),
+    action: "SOURCE_DELETED",
+    actor: { name: "Nicolau Abel" },
+    entity_name: null,
+    target_ref: removed.name,
+    created_at: new Date().toISOString(),
+  });
+
+  return true;
+}
+
