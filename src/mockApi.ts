@@ -1,28 +1,45 @@
-export const mockLogin = async () => ({
-  user: {
-    id: "1",
-    name: "Nicolau Abel",
-    email: "nicolau@checkinsurancerisk.com",
-    role: "SUPER_ADMIN",
-    permissions: [
-      "risk:read","risk:create","risk:pdf:download",
-      "sources:read","sources:upload",
-      "users:read","users:create","users:update",
-      "audit:read"
-    ]
+export async function mockLogin(email: string, password: string) {
+  // Credenciais mock (como pediste)
+  if (email === "nicolau@checkinsurancerisk.com" && password === "Qwerty080397") {
+    return {
+      user: {
+        id: "usr-1",
+        name: "Nicolau Abel",
+        email,
+        role: "SUPER_ADMIN",
+        permissions: [
+          "risk:read","risk:create","risk:pdf:download",
+          "sources:read","sources:upload",
+          "users:read","users:create","users:update",
+          "audit:read"
+        ],
+      },
+    };
   }
-});
+  return null;
+}
 
-let risks: any[] = [
-  {
-    id: "1",
-    ref: "RISK-2026-000001",
-    name: "João Manuel",
-    risk_level: "HIGH",
-    score: 78,
-    pep: { is_pep: true, role_or_function: "Ministro das Finanças" }
-  }
+let users: any[] = [
+  { id:"usr-1", name:"Nicolau Abel", email:"nicolau@checkinsurancerisk.com", role:"SUPER_ADMIN", status:"ACTIVE" }
 ];
+
+export async function listUsers(){ return users; }
+
+export async function createUser(data: any){
+  const u = { id: crypto.randomUUID(), ...data };
+  users.unshift(u);
+  return u;
+}
+
+export async function getUserById(id: string){
+  return users.find(u => u.id === id);
+}
+
+export async function updateUser(id: string, data: any){
+  const i = users.findIndex(u => u.id === id);
+  users[i] = { ...users[i], ...data };
+  return users[i];
+}
 
 export async function listRisks(){ return risks; }
 export async function getRisk(id: string){ return risks.find(r => r.id === id); }
