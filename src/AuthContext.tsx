@@ -1,10 +1,23 @@
 import { createContext, useContext, useState } from "react";
 import { mockLogin } from "./mockApi";
-import { User } from "../../lib/rbac/types";
 
-const Ctx = createContext<any>(null);
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  permissions: string[];
+};
 
-export function AuthProvider({ children }: any) {
+type AuthCtx = {
+  user: User | null;
+  login: () => Promise<void>;
+  logout: () => void;
+};
+
+const Ctx = createContext<AuthCtx>(null as any);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   async function login() {
@@ -23,4 +36,6 @@ export function AuthProvider({ children }: any) {
   );
 }
 
-export const useAuth = () => useContext(Ctx);
+export function useAuth() {
+  return useContext(Ctx);
+}
