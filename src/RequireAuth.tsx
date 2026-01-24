@@ -15,8 +15,7 @@ export function RequirePerm({
   children: JSX.Element;
 }) {
   const { user } = useAuth();
-  if (!user || !user.permissions?.includes(perm)) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (!user.permissions?.includes(perm)) return <Navigate to="/risks" replace />;
   return children;
 }
