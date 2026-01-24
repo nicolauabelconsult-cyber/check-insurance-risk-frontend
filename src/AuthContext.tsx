@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react";
-import { mockLogin } from "../../lib/api/mockApi";
+import { mockLogin } from "./mockApi";
 import { User } from "../../lib/rbac/types";
 
 const Ctx = createContext<any>(null);
