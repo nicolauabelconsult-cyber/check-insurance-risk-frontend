@@ -1,64 +1,64 @@
 import { useEffect, useMemo, useState } from "react";
-import { createSourceMeta, deleteSource, listSources, updateSource, uploadSource } from "./mockApi";
+import { createSource, deleteSource, listSources, updateSource } from "./mockApi";
 
 export default function Sources() {
   const [data, setData] = useState<any[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-
   const [q, setQ] = useState("");
-  const [category, setCategory] = useState("ALL");
+
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("PEP");
+  const [origin, setOrigin] = useState("");
+  const [location, setLocation] = useState("");
+  const [tagsText, setTagsText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
   const [editing, setEditing] = useState<any | null>(null);
 
   const load = async () => setData(await listSources());
-
   useEffect(() => { load(); }, []);
-
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    data.forEach((s) => set.add(s.category || "UNCATEGORIZED"));
-    return ["ALL", ...Array.from(set)];
-  }, [data]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
+    if (!s) return data;
     return data.filter((x) => {
-      const blob = `${x.name} ${x.type} ${x.status} ${x.category || ""} ${(x.tags || []).join(",")}`.toLowerCase();
-      const okQ = !s ? true : blob.includes(s);
-      const okCat = category === "ALL" ? true : (x.category || "UNCATEGORIZED") === category;
-      return okQ && okCat;
+      const blob = `${x.name} ${x.category} ${x.origin} ${(x.tags || []).join(",")} ${x.file_name || ""}`.toLowerCase();
+      return blob.includes(s);
     });
-  }, [data, q, category]);
+  }, [data, q]);
 
-  const submitUpload = async () => {
-    if (!file) return;
-    const created = await uploadSource(file);
-    // depois do upload, abre modal simples para classificar
-    setEditing({ ...created, tagsText: (created.tags || []).join(", ") });
-    setFile(null);
+  const create = async () => {
+    const tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
+    if (!name.trim() || !origin.trim()) return;
+
+    await createSource({
+      name: name.trim(),
+      category,
+      origin: origin.trim(),
+      source_location: location.trim(),
+      tags,
+      file,
+    });
+
+    setName(""); setOrigin(""); setLocation(""); setTagsText(""); setFile(null);
     await load();
   };
 
   const saveEdit = async () => {
-    if (!editing) return;
-    const tags = String(editing.tagsText || "")
-      .split(",")
-      .map((t: string) => t.trim())
-      .filter(Boolean);
-
+    const tags = String(editing.tagsText || "").split(",").map((t: string) => t.trim()).filter(Boolean);
     await updateSource(editing.id, {
-      category: editing.category || "UNCATEGORIZED",
+      name: editing.name,
+      category: editing.category,
+      origin: editing.origin,
+      source_location: editing.source_location,
       tags,
-      status: editing.status || "READY",
+      status: editing.status,
     });
-
     setEditing(null);
     await load();
   };
 
   const remove = async (id: string) => {
-    const ok = confirm("Eliminar esta fonte? Esta ação será registada na auditoria.");
-    if (!ok) return;
+    if (!confirm("Eliminar esta fonte?")) return;
     await deleteSource(id);
     await load();
   };
@@ -68,24 +68,60 @@ export default function Sources() {
       <div className="toolbar">
         <div>
           <h2 className="h1">Fontes</h2>
-          <p className="sub">Upload, classificação e gestão para suportar as pesquisas.</p>
+          <p className="sub">Criar e classificar fontes com origem (onde foi recolhida) para suportar pesquisas.</p>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <h3 style={{ marginTop: 0 }}>Criar Fonte</h3>
+
+        <div className="toolbar" style={{ justifyContent: "flex-start" }}>
+          <div style={{ width: 260 }}>
+            <label>Nome da fonte</label>
+            <input className="input" style={{ width: "100%" }} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: PEP Angola 2026" />
+          </div>
+
+          <div style={{ width: 220 }}>
+            <label>Categoria</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="PEP">PEP</option>
+              <option value="SANCTIONS">SANCTIONS</option>
+              <option value="INTERNAL">INTERNAL</option>
+              <option value="NEWS">NEWS</option>
+              <option value="OTHER">OTHER</option>
+            </select>
+          </div>
+
+          <div style={{ width: 420 }}>
+            <label>Origem (onde foi recolhida)</label>
+            <input className="input" style={{ width: "100%" }} value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Ex: Website oficial / órgão / fornecedor / jornal" />
+          </div>
+
+          <div style={{ width: 220 }}>
+            <label>Local (opcional)</label>
+            <input className="input" style={{ width: "100%" }} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ex: Luanda" />
+          </div>
+
+          <div style={{ width: 420 }}>
+            <label>Tags (vírgulas)</label>
+            <input className="input" style={{ width: "100%" }} value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="Ex: Angola, Governo, 2026" />
+          </div>
+
+          <div style={{ width: 320 }}>
+            <label>Ficheiro (opcional)</label>
+            <input type="file" accept=".csv,.xlsx,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </div>
+
+          <button className="btn primary" onClick={create} disabled={!name.trim() || !origin.trim()}>
+            Guardar Fonte
+          </button>
         </div>
       </div>
 
       <div className="toolbar" style={{ justifyContent: "flex-start" }}>
-        <input type="file" accept=".csv,.xlsx,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-        <button className="btn primary" onClick={submitUpload} disabled={!file}>Enviar</button>
-
-        <div style={{ width: 360 }}>
+        <div style={{ width: 420 }}>
           <label>Pesquisar</label>
-          <input className="input" style={{ width: "100%" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, categoria, tags..." />
-        </div>
-
-        <div style={{ width: 220 }}>
-          <label>Categoria</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <input className="input" style={{ width: "100%" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, categoria, origem, tags..." />
         </div>
       </div>
 
@@ -93,26 +129,24 @@ export default function Sources() {
         <thead>
           <tr>
             <th>Nome</th>
-            <th>Tipo</th>
-            <th>Estado</th>
             <th>Categoria</th>
+            <th>Origem</th>
             <th>Tags</th>
-            <th>Upload por</th>
+            <th>Ficheiro</th>
+            <th>Estado</th>
             <th>Data</th>
-            <th>Ações</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {filtered.map((s) => (
             <tr key={s.id}>
               <td>{s.name}</td>
-              <td><span className="tag">{s.type}</span></td>
+              <td><span className="tag">{s.category}</span></td>
+              <td style={{ maxWidth: 320, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.origin}</td>
+              <td style={{ maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{(s.tags || []).join(", ") || "-"}</td>
+              <td>{s.file_name || "-"}</td>
               <td><span className={`tag ${s.status === "READY" ? "ok" : "warn"}`}>{s.status}</span></td>
-              <td><span className="tag">{s.category || "UNCATEGORIZED"}</span></td>
-              <td style={{ maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {(s.tags || []).join(", ") || "-"}
-              </td>
-              <td>{s.uploaded_by?.name}</td>
               <td>{new Date(s.created_at).toLocaleString()}</td>
               <td className="stack">
                 <button className="btn" onClick={() => setEditing({ ...s, tagsText: (s.tags || []).join(", ") })}>Editar</button>
@@ -137,34 +171,43 @@ export default function Sources() {
           </div>
 
           <div className="toolbar" style={{ justifyContent: "flex-start" }}>
-            <div style={{ width: 260 }}>
+            <div style={{ width: 320 }}>
+              <label>Nome</label>
+              <input className="input" style={{ width: "100%" }} value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+            </div>
+
+            <div style={{ width: 220 }}>
               <label>Categoria</label>
-              <select value={editing.category || "UNCATEGORIZED"} onChange={(e) => setEditing({ ...editing, category: e.target.value })}>
-                <option value="UNCATEGORIZED">UNCATEGORIZED</option>
+              <select value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })}>
                 <option value="PEP">PEP</option>
                 <option value="SANCTIONS">SANCTIONS</option>
                 <option value="INTERNAL">INTERNAL</option>
                 <option value="NEWS">NEWS</option>
-              </select>
-            </div>
-
-            <div style={{ width: 260 }}>
-              <label>Estado</label>
-              <select value={editing.status || "READY"} onChange={(e) => setEditing({ ...editing, status: e.target.value })}>
-                <option value="READY">READY</option>
-                <option value="ARCHIVED">ARCHIVED</option>
+                <option value="OTHER">OTHER</option>
               </select>
             </div>
 
             <div style={{ width: 520 }}>
-              <label>Tags (separar por vírgula)</label>
-              <input
-                className="input"
-                style={{ width: "100%" }}
-                value={editing.tagsText || ""}
-                onChange={(e) => setEditing({ ...editing, tagsText: e.target.value })}
-                placeholder="Ex: Angola, Governo, 2026"
-              />
+              <label>Origem</label>
+              <input className="input" style={{ width: "100%" }} value={editing.origin} onChange={(e) => setEditing({ ...editing, origin: e.target.value })} />
+            </div>
+
+            <div style={{ width: 240 }}>
+              <label>Local</label>
+              <input className="input" style={{ width: "100%" }} value={editing.source_location || ""} onChange={(e) => setEditing({ ...editing, source_location: e.target.value })} />
+            </div>
+
+            <div style={{ width: 520 }}>
+              <label>Tags</label>
+              <input className="input" style={{ width: "100%" }} value={editing.tagsText || ""} onChange={(e) => setEditing({ ...editing, tagsText: e.target.value })} />
+            </div>
+
+            <div style={{ width: 220 }}>
+              <label>Estado</label>
+              <select value={editing.status} onChange={(e) => setEditing({ ...editing, status: e.target.value })}>
+                <option value="READY">READY</option>
+                <option value="ARCHIVED">ARCHIVED</option>
+              </select>
             </div>
           </div>
         </div>
