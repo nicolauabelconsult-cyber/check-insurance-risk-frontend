@@ -1,4 +1,4 @@
-importimport { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createRisk } from "./mockApi";
 
