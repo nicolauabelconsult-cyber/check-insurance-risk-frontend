@@ -8,6 +8,8 @@ import RiskCreate from "./RiskCreate";
 import RiskDetail from "./RiskDetail";
 import Sources from "./Sources";
 import Users from "./Users";
+import UserCreate from "./UserCreate";
+import UserEdit from "./UserEdit";
 import Audit from "./Audit";
 
 export default function AppRoutes() {
@@ -22,7 +24,11 @@ export default function AppRoutes() {
         <Route path="/risks/:id" element={<RequirePerm perm="risk:read"><RiskDetail /></RequirePerm>} />
 
         <Route path="/sources" element={<RequirePerm perm="sources:read"><Sources /></RequirePerm>} />
+
         <Route path="/users" element={<RequirePerm perm="users:read"><Users /></RequirePerm>} />
+        <Route path="/users/new" element={<RequirePerm perm="users:create"><UserCreate /></RequirePerm>} />
+        <Route path="/users/:id" element={<RequirePerm perm="users:update"><UserEdit /></RequirePerm>} />
+
         <Route path="/audit" element={<RequirePerm perm="audit:read"><Audit /></RequirePerm>} />
       </Route>
     </Routes>
