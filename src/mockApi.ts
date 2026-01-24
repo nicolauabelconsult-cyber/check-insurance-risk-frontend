@@ -1,8 +1,4 @@
-// src/mockApi.ts
-// Mock único e consistente (login + risks + fontes + users CRUD + audit)
-
 export async function mockLogin(email: string, password: string) {
-  // Credenciais mock (como pediste)
   if (email === "nicolau@checkinsurancerisk.com" && password === "Qwerty080397") {
     return {
       user: {
@@ -11,18 +7,15 @@ export async function mockLogin(email: string, password: string) {
         email,
         role: "SUPER_ADMIN",
         permissions: [
-          permissions: [
-  "risk:read",
-  "risk:create",
-  "risk:pdf:download",
-  "sources:read",
-  "sources:upload",
-  "users:read",
-  "users:create",
-  "users:update",
-  "audit:read",
-],
-
+          "risk:read",
+          "risk:create",
+          "risk:pdf:download",
+          "sources:read",
+          "sources:upload",
+          "users:read",
+          "users:create",
+          "users:update",
+          "audit:read",
         ],
       },
     };
