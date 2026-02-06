@@ -11,3 +11,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </AuthProvider>
   </BrowserRouter>
 );
+
+console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
+console.log("VITE_USE_MOCK_API =", import.meta.env.VITE_USE_MOCK_API);
