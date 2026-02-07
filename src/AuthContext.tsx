@@ -7,9 +7,8 @@ type User = {
   name: string;
   email: string;
   role: string;
-  status?: string;
+  status: string;
   entity?: { id: string; name: string } | null;
-  permissions?: string[];
 };
 
 type AuthCtx = {
