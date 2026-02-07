@@ -12,7 +12,6 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
   const res = await fetch(`${API}${path}`, { ...options, headers });
 
-  // tenta ler json mesmo em erros
   const data = await res.json().catch(() => null);
 
   if (!res.ok) {
