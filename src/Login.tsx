@@ -9,15 +9,21 @@ export default function Login() {
   const [email, setEmail] = useState("nicolau@checkinsurancerisk.com");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const submit = async () => {
     setErr(null);
-    const ok = await login(email.trim(), password);
-    if (!ok) {
-      setErr("Credenciais inválidas.");
-      return;
+    setLoading(true);
+    try {
+      const ok = await login(email.trim(), password);
+      if (!ok) {
+        setErr("Credenciais inválidas.");
+        return;
+      }
+      nav("/risks");
+    } finally {
+      setLoading(false);
     }
-    nav("/risks");
   };
 
   return (
@@ -34,6 +40,7 @@ export default function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email@empresa.com"
+            autoComplete="username"
           />
         </div>
 
@@ -46,6 +53,7 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="********"
+            autoComplete="current-password"
           />
         </div>
 
@@ -55,15 +63,10 @@ export default function Login() {
           </div>
         )}
 
-        <button className="btn primary" onClick={submit}>
-          Entrar
+        <button className="btn primary" onClick={submit} disabled={loading}>
+          {loading ? "A entrar..." : "Entrar"}
         </button>
       </div>
-
-      <p className="sub" style={{ marginTop: 10 }}>
-        (Mock) SUPER_ADMIN: <b>nicolau@checkinsurancerisk.com</b> / <b>Qwerty080397</b>
-      </p>
     </div>
   );
 }
-
