@@ -1,62 +1,44 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { apiFetch } from "./api";
+# app/routers/risks.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-export default function RiskList() {
-  const [risks, setRisks] = useState<any[]>([]);
-  const [err, setErr] = useState<string | null>(null);
+from ..db import get_db
+from ..deps import require_perm
+from ..models import Risk, UserRole
+from ..schemas import RiskOut
 
-  async function load() {
-    setErr(null);
-    try {
-      const data = await apiFetch("/risks", { method: "GET" });
-      setRisks(data);
-    } catch (e: any) {
-      setErr(e.message || "Erro ao carregar riscos.");
-    }
-  }
+router = APIRouter(prefix="/risks", tags=["risks"])
 
-  useEffect(() => {
-    load();
-  }, []);
 
-  return (
-    <>
-      <div className="toolbar">
-        <div>
-          <h2 className="h1">Análises de Risco</h2>
-          <p className="sub">Lista carregada do backend.</p>
-        </div>
-        <button className="btn" onClick={load}>Atualizar</button>
-        <Link className="btn primary" to="/risks/new">Nova Análise</Link>
-      </div>
+@router.get("", response_model=list[RiskOut])
+def list_risks(db: Session = Depends(get_db), u=Depends(require_perm("risk:read"))):
+    q = db.query(Risk)
 
-      {err && <div className="tag bad">{err}</div>}
+    # scoping: clientes só veem a sua entidade
+    if u.role not in (UserRole.SUPER_ADMIN, UserRole.ADMIN):
+        q = q.filter(Risk.entity_id == u.entity_id)
 
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Nacionalidade</th>
-            <th>Score</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {risks.map((r) => (
-            <tr key={r.id}>
-              <td>{r.name || "-"}</td>
-              <td>{r.nationality || "-"}</td>
-              <td>{r.score || "-"}</td>
-              <td>{r.status || "-"}</td>
-              <td>
-                <Link className="btn" to={`/risks/${r.id}`}>Ver</Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
-}
+    rows = q.order_by(Risk.created_at.desc()).all()
+
+    def pick(r, *names, default=None):
+        for n in names:
+            if hasattr(r, n):
+                return getattr(r, n)
+        return default
+
+    return [
+        RiskOut(
+            id=pick(r, "id"),
+            entity_id=pick(r, "entity_id"),
+            # ✅ aqui está o fix: tenta vários nomes
+            name=pick(r, "name", "full_name", "person_name", "candidate_name"),
+            bi=pick(r, "bi", "bi_number", "id_bi"),
+            passport=pick(r, "passport", "passport_number", "id_passport"),
+            nationality=pick(r, "nationality", "country", "citizenship"),
+            score=pick(r, "score"),
+            summary=pick(r, "summary"),
+            matches=pick(r, "matches", default=[]) or [],
+            status=pick(r, "status"),
+        )
+        for r in rows
+    ]
