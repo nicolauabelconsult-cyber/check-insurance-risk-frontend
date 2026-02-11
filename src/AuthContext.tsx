@@ -9,6 +9,7 @@ type User = {
   role: string;
   status: string;
   entity?: { id: string; name: string } | null;
+  permissions?: string[]; // ✅ adiciona
 };
 
 type AuthCtx = {
