@@ -1,69 +1,103 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { useAuth } from "./AuthContext";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
+import React from "react";
 
-export default function MainLayout() {
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user, logout } = useAuth();
-  const can = (perm: string) => !!user?.permissions?.includes(perm);
-  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
-    <>
-      <div className="header">
-        <div className="header-inner container">
-          <div className="brand">
-            <div className="logo" />
-            <div>
-              <h1>Check Insurance Risk</h1>
-              <small>KYC • AML • PEP • Due Diligence</small>
-            </div>
-          </div>
-
-          <nav className="nav" aria-label="main">
-            {isAdmin && (
-              <NavLink to="/dashboard" className={({ isActive }) => (isActive ? "active" : "")}>
-                Dashboard
-              </NavLink>
-            )}
-
-            <NavLink to="/risks" className={({ isActive }) => (isActive ? "active" : "")}>
-              Análises
-            </NavLink>
-
-            {can("sources:read") && (
-              <NavLink to="/sources" className={({ isActive }) => (isActive ? "active" : "")}>
-                Fontes
-              </NavLink>
-            )}
-
-            {can("users:read") && (
-              <NavLink to="/users" className={({ isActive }) => (isActive ? "active" : "")}>
-                Utilizadores
-              </NavLink>
-            )}
-
-            {can("audit:read") && (
-              <NavLink to="/audit" className={({ isActive }) => (isActive ? "active" : "")}>
-                Auditoria
-              </NavLink>
-            )}
-          </nav>
-
-          <div className="userbox">
-            <span className="pill">
-              {user?.name ?? "Sessão"} • {user?.role ?? "-"}
-            </span>
-            <button className="btn danger" onClick={logout}>
-              Logout
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+      {/* Top Bar */}
+      <header className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-500 rounded-md" />
+          <div>
+            <h1 className="text-lg font-semibold">Check Insurance Risk</h1>
+            <p className="text-xs text-slate-400">
+              KYC · AML · PEP · Due Diligence
+            </p>
           </div>
         </div>
-      </div>
 
-      <main className="container" style={{ paddingTop: 18 }}>
-        <div className="card" style={{ padding: 18 }}>
-          <Outlet />
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-slate-300">
+            {user?.name} · {user?.role}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1 border border-red-500 rounded-md text-red-400 hover:bg-red-500 hover:text-white transition"
+          >
+            Logout
+          </button>
         </div>
-      </main>
-    </>
+      </header>
+
+      {/* Navigation */}
+      <nav className="flex gap-6 px-6 py-3 border-b border-slate-700 text-sm">
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) =>
+            isActive ? "text-blue-400" : "text-slate-300 hover:text-white"
+          }
+        >
+          Dashboard
+        </NavLink>
+
+        <NavLink
+          to="/analyses"
+          className={({ isActive }) =>
+            isActive ? "text-blue-400" : "text-slate-300 hover:text-white"
+          }
+        >
+          Análises
+        </NavLink>
+
+        {/* 🔒 Fontes apenas SUPER_ADMIN */}
+        {user?.role === "SUPER_ADMIN" && (
+          <NavLink
+            to="/sources"
+            className={({ isActive }) =>
+              isActive ? "text-blue-400" : "text-slate-300 hover:text-white"
+            }
+          >
+            Fontes
+          </NavLink>
+        )}
+
+        <NavLink
+          to="/users"
+          className={({ isActive }) =>
+            isActive ? "text-blue-400" : "text-slate-300 hover:text-white"
+          }
+        >
+          Utilizadores
+        </NavLink>
+
+        {/* 🔒 Auditoria apenas ADMIN e SUPER_ADMIN */}
+        {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") && (
+          <NavLink
+            to="/audit"
+            className={({ isActive }) =>
+              isActive ? "text-blue-400" : "text-slate-300 hover:text-white"
+            }
+          >
+            Auditoria
+          </NavLink>
+        )}
+      </nav>
+
+      {/* Page Content */}
+      <main className="p-6">{children}</main>
+    </div>
   );
 }
