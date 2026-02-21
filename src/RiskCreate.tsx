@@ -69,14 +69,14 @@ export default function RiskCreate() {
   const confirm = async () => {
     setErr(null);
 
-    if (!picked) return setErr("Selecione um candidato.");
     if (!finalEntityId) return setErr("Entidade inválida.");
+    if (!picked && !name.trim()) return setErr("Informe o nome.");
     if (!nationality.trim()) return setErr("Nacionalidade é obrigatória.");
     if (!idNumber.trim()) return setErr("Nº documento é obrigatório.");
 
     const payload: any = {
-      candidate_id: picked.id,
-      name: picked.full_name,
+      candidate_id: picked ? picked.id : "NO_MATCH",
+      name: picked ? picked.full_name : name.trim(),
       nationality: nationality.trim(),
       id_type: idType,
       id_number: idNumber.trim(),
@@ -98,7 +98,11 @@ export default function RiskCreate() {
       <h2 className="h1">Nova Análise</h2>
       <p className="sub">Pesquisa por nome e confirmação por BI/Passaporte.</p>
 
-      {err && <div className="tag bad" style={{ marginBottom: 12 }}>{err}</div>}
+      {err && (
+        <div className="tag bad" style={{ marginBottom: 12 }}>
+          {err}
+        </div>
+      )}
 
       {isAdmin && (
         <div className="card" style={{ padding: 14, marginBottom: 12, maxWidth: 760 }}>
@@ -116,15 +120,27 @@ export default function RiskCreate() {
       <div className="toolbar" style={{ justifyContent: "flex-start" }}>
         <div style={{ width: 420 }}>
           <label>Nome</label>
-          <input className="input" style={{ width: "100%" }} value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="input"
+            style={{ width: "100%" }}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
 
         <div style={{ width: 240 }}>
           <label>Nacionalidade</label>
-          <input className="input" style={{ width: "100%" }} value={nationality} onChange={(e) => setNationality(e.target.value)} />
+          <input
+            className="input"
+            style={{ width: "100%" }}
+            value={nationality}
+            onChange={(e) => setNationality(e.target.value)}
+          />
         </div>
 
-        <button className="btn primary" onClick={search}>Pesquisar</button>
+        <button className="btn primary" onClick={search}>
+          Pesquisar
+        </button>
       </div>
 
       {cands && (
@@ -142,40 +158,67 @@ export default function RiskCreate() {
               </tr>
             </thead>
             <tbody>
+              {cands.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ opacity: 0.8 }}>
+                    Sem correspondências.
+                  </td>
+                </tr>
+              )}
               {cands.map((c) => (
                 <tr key={c.id}>
                   <td>{c.full_name}</td>
                   <td>{c.nationality}</td>
                   <td>{c.doc_type ? `${c.doc_type} • ****${c.doc_last4 || ""}` : "-"}</td>
-                  <td><span className="tag ok">{c.match_score}</span></td>
-                  <td><button className="btn" onClick={() => setPicked(c)}>Selecionar</button></td>
+                  <td>
+                    <span className="tag ok">{c.match_score}</span>
+                  </td>
+                  <td>
+                    <button className="btn" onClick={() => setPicked(c)}>
+                      Selecionar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {picked && (
-            <div className="card" style={{ padding: 14, marginTop: 14 }}>
-              <h4 style={{ marginTop: 0 }}>Confirmar</h4>
+          <div className="card" style={{ padding: 14, marginTop: 14 }}>
+            <h4 style={{ marginTop: 0 }}>
+              Confirmar {picked ? "candidato" : "sem correspondência"}
+            </h4>
 
-              <div className="toolbar" style={{ justifyContent: "flex-start" }}>
-                <div style={{ width: 220 }}>
-                  <label>Tipo Documento</label>
-                  <select value={idType} onChange={(e) => setIdType(e.target.value as any)}>
-                    <option value="BI">BI</option>
-                    <option value="PASSPORT">PASSPORT</option>
-                  </select>
-                </div>
-
-                <div style={{ width: 360 }}>
-                  <label>Nº Documento</label>
-                  <input className="input" style={{ width: "100%" }} value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
-                </div>
-
-                <button className="btn primary" onClick={confirm}>Gerar análise + PDF</button>
+            {!picked && (
+              <div className="tag" style={{ marginBottom: 10 }}>
+                Não foram encontradas correspondências. Você pode gerar um relatório indicando{" "}
+                <b>Sem correspondência</b>.
               </div>
+            )}
+
+            <div className="toolbar" style={{ justifyContent: "flex-start" }}>
+              <div style={{ width: 220 }}>
+                <label>Tipo Documento</label>
+                <select value={idType} onChange={(e) => setIdType(e.target.value as any)}>
+                  <option value="BI">BI</option>
+                  <option value="PASSPORT">PASSPORT</option>
+                </select>
+              </div>
+
+              <div style={{ width: 360 }}>
+                <label>Nº Documento</label>
+                <input
+                  className="input"
+                  style={{ width: "100%" }}
+                  value={idNumber}
+                  onChange={(e) => setIdNumber(e.target.value)}
+                />
+              </div>
+
+              <button className="btn primary" onClick={confirm}>
+                Gerar análise + PDF
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </>
