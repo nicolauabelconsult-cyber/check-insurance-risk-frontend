@@ -1,7 +1,8 @@
-  import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "./api";
 import { useAuth } from "./AuthContext";
 
+type Entity = { id: string; name: string; sector?: string };
 type SourceRow = {
   id: string;
   name: string;
@@ -14,9 +15,24 @@ type SourceRow = {
   created_at: string;
 };
 
+function stringifyErr(e: any) {
+  if (!e) return "Erro desconhecido";
+  if (typeof e === "string") return e;
+  if (e?.message && typeof e.message === "string") return e.message;
+  if (e?.detail && typeof e.detail === "string") return e.detail;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
+
 export default function Sources() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [entityId, setEntityId] = useState<string>("");
 
   const [data, setData] = useState<SourceRow[]>([]);
   const [q, setQ] = useState("");
@@ -32,19 +48,46 @@ export default function Sources() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = async () => {
+  const loadEntities = async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const rows = await apiFetch("/entities");
+      const list: Entity[] = rows || [];
+      setEntities(list);
+      if (!entityId && list.length > 0) setEntityId(list[0].id);
+    } catch (e: any) {
+      setErr(stringifyErr(e));
+    }
+  };
+
+  const loadSources = async () => {
     setErr(null);
     try {
-      const rows = await apiFetch("/sources");
+      let url = "/sources";
+      // SUPER_ADMIN: filtramos pelo tenant selecionado
+      if (isSuperAdmin) {
+        if (!entityId) {
+          setData([]);
+          return;
+        }
+        url = `/sources?entity_id=${encodeURIComponent(entityId)}`;
+      }
+      const rows = await apiFetch(url);
       setData(rows || []);
     } catch (e: any) {
-      setErr(e?.message || "Erro ao carregar fontes");
+      setErr(stringifyErr(e));
     }
   };
 
   useEffect(() => {
-    load();
+    loadEntities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadSources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityId]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -57,7 +100,14 @@ export default function Sources() {
 
   const create = async () => {
     setErr(null);
+
     if (!name.trim() || !origin.trim()) return;
+
+    // SUPER_ADMIN: entityId obrigatório
+    if (isSuperAdmin && !entityId) {
+      setErr("Selecione uma Entidade antes de criar a fonte.");
+      return;
+    }
 
     const tags = tagsText
       .split(",")
@@ -66,28 +116,29 @@ export default function Sources() {
 
     setBusy(true);
     try {
-      // 1) cria a fonte (metadata)
+      // 1) cria a fonte
+      const payload: any = {
+        name: name.trim(),
+        category,
+        origin: origin.trim(),
+        source_location: location.trim() || undefined,
+        tags,
+      };
+      if (isSuperAdmin) payload.entity_id = entityId;
+
       const created = await apiFetch("/sources", {
         method: "POST",
-        body: JSON.stringify({
-          name: name.trim(),
-          category,
-          origin: origin.trim(),
-          source_location: location.trim() || undefined,
-          tags,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      // 2) upload do ficheiro (se existir)
+      // 2) upload (se existir)
       if (file) {
         const form = new FormData();
         form.append("file", file);
 
         const token = localStorage.getItem("cir_token");
         const headers: Record<string, string> = {};
-        if (token && token !== "null" && token !== "undefined") {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
+        if (token && token !== "null" && token !== "undefined") headers["Authorization"] = `Bearer ${token}`;
 
         const API = import.meta.env.VITE_API_URL;
         const res = await fetch(`${API}/sources/${created.id}/upload`, {
@@ -101,16 +152,15 @@ export default function Sources() {
         if (!res.ok) throw new Error(out?.detail || `Upload falhou (HTTP ${res.status})`);
       }
 
-      // reset form
       setName("");
       setOrigin("");
       setLocation("");
       setTagsText("");
       setFile(null);
 
-      await load();
+      await loadSources();
     } catch (e: any) {
-      setErr(e?.message || "Erro ao criar fonte");
+      setErr(stringifyErr(e));
     } finally {
       setBusy(false);
     }
@@ -118,6 +168,13 @@ export default function Sources() {
 
   const saveEdit = async () => {
     setErr(null);
+    if (!editing) return;
+
+    if (isSuperAdmin && !entityId) {
+      setErr("Selecione uma Entidade antes de editar.");
+      return;
+    }
+
     setBusy(true);
     try {
       const tags = String(editing.tagsText || "")
@@ -125,22 +182,25 @@ export default function Sources() {
         .map((t: string) => t.trim())
         .filter(Boolean);
 
+      const payload: any = {
+        name: editing.name,
+        category: editing.category,
+        origin: editing.origin,
+        source_location: editing.source_location || undefined,
+        tags,
+        status: editing.status,
+      };
+      if (isSuperAdmin) payload.entity_id = entityId;
+
       await apiFetch(`/sources/${editing.id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          name: editing.name,
-          category: editing.category,
-          origin: editing.origin,
-          source_location: editing.source_location || undefined,
-          tags,
-          status: editing.status,
-        }),
+        body: JSON.stringify(payload),
       });
 
       setEditing(null);
-      await load();
+      await loadSources();
     } catch (e: any) {
-      setErr(e?.message || "Erro ao atualizar fonte");
+      setErr(stringifyErr(e));
     } finally {
       setBusy(false);
     }
@@ -149,12 +209,20 @@ export default function Sources() {
   const remove = async (id: string) => {
     setErr(null);
     if (!confirm("Eliminar esta fonte?")) return;
+
+    if (isSuperAdmin && !entityId) {
+      setErr("Selecione uma Entidade antes de eliminar.");
+      return;
+    }
+
     setBusy(true);
     try {
-      await apiFetch(`/sources/${id}`, { method: "DELETE" });
-      await load();
+      // se o backend exigir entity_id no delete, usamos query param também
+      const url = isSuperAdmin ? `/sources/${id}?entity_id=${encodeURIComponent(entityId)}` : `/sources/${id}`;
+      await apiFetch(url, { method: "DELETE" });
+      await loadSources();
     } catch (e: any) {
-      setErr(e?.message || "Erro ao eliminar fonte");
+      setErr(stringifyErr(e));
     } finally {
       setBusy(false);
     }
@@ -177,91 +245,88 @@ export default function Sources() {
 
       {isSuperAdmin && (
         <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-          <h3 style={{ marginTop: 0 }}>Criar Fonte</h3>
-
+          <h3 style={{ marginTop: 0 }}>Entidade</h3>
           <div className="toolbar" style={{ justifyContent: "flex-start" }}>
-            <div style={{ width: 260 }}>
-              <label>Nome da fonte</label>
-              <input
-                className="input"
-                style={{ width: "100%" }}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: PEP Angola 2026"
-              />
-            </div>
-
-            <div style={{ width: 220 }}>
-              <label>Categoria</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="PEP">PEP</option>
-                <option value="SANCTIONS">SANCTIONS</option>
-                <option value="WATCHLIST">WATCHLIST</option>
-                <option value="ADVERSE_MEDIA">ADVERSE_MEDIA</option>
-                <option value="INSURANCE">INSURANCE</option>
-                <option value="INTERNAL">INTERNAL</option>
-                <option value="NEWS">NEWS</option>
-                <option value="OTHER">OTHER</option>
+            <div style={{ width: 520 }}>
+              <label>Selecionar Entidade (obrigatório)</label>
+              <select value={entityId} onChange={(e) => setEntityId(e.target.value)} style={{ width: "100%" }}>
+                {entities.map((en) => (
+                  <option key={en.id} value={en.id}>
+                    {en.name} {en.sector ? `(${en.sector})` : ""}
+                  </option>
+                ))}
               </select>
             </div>
-
-            <div style={{ width: 420 }}>
-              <label>Origem (onde foi recolhida)</label>
-              <input
-                className="input"
-                style={{ width: "100%" }}
-                value={origin}
-                onChange={(e) => setOrigin(e.target.value)}
-                placeholder="Ex: Website oficial / órgão / fornecedor / jornal"
-              />
-            </div>
-
-            <div style={{ width: 220 }}>
-              <label>Local (opcional)</label>
-              <input
-                className="input"
-                style={{ width: "100%" }}
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Ex: Luanda"
-              />
-            </div>
-
-            <div style={{ width: 420 }}>
-              <label>Tags (vírgulas)</label>
-              <input
-                className="input"
-                style={{ width: "100%" }}
-                value={tagsText}
-                onChange={(e) => setTagsText(e.target.value)}
-                placeholder="Ex: Angola, Governo, 2026"
-              />
-            </div>
-
-            <div style={{ width: 320 }}>
-              <label>Ficheiro (opcional)</label>
-              <input type="file" accept=".csv,.xlsx,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            </div>
-
-            <button className="btn primary" onClick={create} disabled={busy || !name.trim() || !origin.trim()}>
-              {busy ? "A processar..." : "Guardar Fonte"}
+            <button className="btn" onClick={loadEntities} disabled={busy}>
+              Recarregar entidades
             </button>
           </div>
         </div>
       )}
 
+      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <h3 style={{ marginTop: 0 }}>Criar Fonte</h3>
+
+        <div className="toolbar" style={{ justifyContent: "flex-start" }}>
+          <div style={{ width: 260 }}>
+            <label>Nome da fonte</label>
+            <input className="input" style={{ width: "100%" }} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: PEP Angola 2026" />
+          </div>
+
+          <div style={{ width: 220 }}>
+            <label>Categoria</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option value="PEP">PEP</option>
+              <option value="SANCTIONS">SANCTIONS</option>
+              <option value="WATCHLIST">WATCHLIST</option>
+              <option value="ADVERSE_MEDIA">ADVERSE_MEDIA</option>
+              <option value="INSURANCE">INSURANCE</option>
+              <option value="OTHER">OTHER</option>
+            </select>
+          </div>
+
+          <div style={{ width: 520 }}>
+            <label>Origem (onde foi recolhida)</label>
+            <input
+              className="input"
+              style={{ width: "100%" }}
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              placeholder="Ex: Website oficial / órgão / fornecedor / jornal"
+            />
+          </div>
+
+          <div style={{ width: 220 }}>
+            <label>Local (opcional)</label>
+            <input className="input" style={{ width: "100%" }} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ex: Luanda" />
+          </div>
+
+          <div style={{ width: 520 }}>
+            <label>Tags (vírgulas)</label>
+            <input className="input" style={{ width: "100%" }} value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="Ex: Angola, Governo, 2026" />
+          </div>
+
+          <div style={{ width: 320 }}>
+            <label>Ficheiro (opcional)</label>
+            <input type="file" accept=".csv,.xlsx,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </div>
+
+          <button
+            className="btn primary"
+            onClick={create}
+            disabled={busy || !name.trim() || !origin.trim() || (isSuperAdmin && !entityId)}
+          >
+            {busy ? "A processar..." : "Guardar Fonte"}
+          </button>
+        </div>
+      </div>
+
       <div className="toolbar" style={{ justifyContent: "flex-start" }}>
         <div style={{ width: 420 }}>
           <label>Pesquisar</label>
-          <input
-            className="input"
-            style={{ width: "100%" }}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Nome, categoria, origem, tags..."
-          />
+          <input className="input" style={{ width: "100%" }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, categoria, origem, tags..." />
         </div>
-        <button className="btn" onClick={load} disabled={busy}>
+        <button className="btn" onClick={loadSources} disabled={busy}>
           Atualizar
         </button>
       </div>
@@ -287,9 +352,7 @@ export default function Sources() {
                 <span className="tag">{s.category}</span>
               </td>
               <td style={{ maxWidth: 320, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.origin}</td>
-              <td style={{ maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {(s.tags || []).join(", ") || "-"}
-              </td>
+              <td style={{ maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{(s.tags || []).join(", ") || "-"}</td>
               <td>{s.file_name || "-"}</td>
               <td>
                 <span className={`tag ${s.status === "READY" ? "ok" : "warn"}`}>{s.status}</span>
@@ -317,15 +380,13 @@ export default function Sources() {
           <div className="toolbar">
             <div>
               <h3 style={{ margin: 0 }}>Editar Fonte</h3>
-              <p className="sub" style={{ marginTop: 6 }}>
-                {editing.name}
-              </p>
+              <p className="sub" style={{ marginTop: 6 }}>{editing.name}</p>
             </div>
             <div className="stack">
               <button className="btn" onClick={() => setEditing(null)} disabled={busy}>
                 Fechar
               </button>
-              <button className="btn primary" onClick={saveEdit} disabled={busy}>
+              <button className="btn primary" onClick={saveEdit} disabled={busy || (isSuperAdmin && !entityId)}>
                 {busy ? "A processar..." : "Guardar"}
               </button>
             </div>
@@ -345,8 +406,6 @@ export default function Sources() {
                 <option value="WATCHLIST">WATCHLIST</option>
                 <option value="ADVERSE_MEDIA">ADVERSE_MEDIA</option>
                 <option value="INSURANCE">INSURANCE</option>
-                <option value="INTERNAL">INTERNAL</option>
-                <option value="NEWS">NEWS</option>
                 <option value="OTHER">OTHER</option>
               </select>
             </div>
@@ -358,12 +417,7 @@ export default function Sources() {
 
             <div style={{ width: 240 }}>
               <label>Local</label>
-              <input
-                className="input"
-                style={{ width: "100%" }}
-                value={editing.source_location || ""}
-                onChange={(e) => setEditing({ ...editing, source_location: e.target.value })}
-              />
+              <input className="input" style={{ width: "100%" }} value={editing.source_location || ""} onChange={(e) => setEditing({ ...editing, source_location: e.target.value })} />
             </div>
 
             <div style={{ width: 520 }}>
